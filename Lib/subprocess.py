@@ -1801,8 +1801,14 @@ class Popen:
 
 
         def _readerthread(self, fh, buffer):
-            buffer.append(fh.read())
-            fh.close()
+            # Failures such as UnicodeDecodeError in text mode have to reach
+            # the calling thread instead of dying with this one, see gh-158006.
+            try:
+                buffer.append(fh.read())
+            except BaseException as exc:
+                buffer.append(exc)
+            finally:
+                fh.close()
 
 
         def _writerthread(self, input):
@@ -1871,6 +1877,12 @@ class Popen:
             # All data exchanged.  Translate lists into strings.
             stdout = stdout[0] if stdout else None
             stderr = stderr[0] if stderr else None
+
+            # Raise what killed a reader thread in this thread instead, as
+            # the single pipe path does, see gh-158006.
+            for value in (stdout, stderr):
+                if isinstance(value, BaseException):
+                    raise value
 
             return (stdout, stderr)
 

@@ -1,0 +1,4 @@
+Fix :meth:`subprocess.Popen.communicate` ignoring errors from its reader
+threads. A decoding error now propagates to the caller instead of leaving the
+stream as ``None``; this affected Windows when *timeout* was used or when
+more than one standard stream was a pipe.

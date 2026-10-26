@@ -1407,6 +1407,18 @@ class ProcessTestCase(BaseTestCase):
             stdout, stderr = popen.communicate(input='')
             self.assertEqual(stdout, '[{}]'.format(expected))
 
+    def test_communicate_decode_error_in_reader_thread(self):
+        # gh-158006: a decode error raised in a reader thread was lost and
+        # communicate() returned None for that stream.
+        code = r"import sys; sys.stdout.buffer.write(b'ok \xff\n')"
+        args = [sys.executable, '-c', code]
+        for kwargs in ({'stdout': subprocess.PIPE},
+                       {'stdout': subprocess.PIPE, 'timeout': 10},
+                       {'capture_output': True}):
+            with self.subTest(**kwargs):
+                with self.assertRaises(UnicodeDecodeError):
+                    subprocess.run(args, encoding='utf-8', **kwargs)
+
     def test_no_leaking(self):
         # Make sure we leak no resources
         if not mswindows:
